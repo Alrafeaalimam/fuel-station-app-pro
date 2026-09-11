@@ -70,11 +70,65 @@ jobs:
 
           $readme = @"
           ملاحظة هامة لتشغيل تطبيق محطة الوقود (النسخة الاحترافية Pro):
-          1. يجب فك ضغط هذا الملف كاملاً (Extract All) إلى مجلد عادي على جهازك.
-          2. لا تقم بتشغيل التطبيق من داخل ملف الـ zip مباشرة دون فك الضغط.
-          3. بعد فك الضغط، افتح المجلد وشغل fuel_station_app_pro.exe مباشرة.
+          1. يفضل دائماً استخدام ملف التثبيت المباشر: FuelStationAppPro-Setup-v*.exe
+          2. إذا فضلت استخدام ملف الـ zip، يجب فك ضغط الملف كاملاً (Extract All) قبل التشغيل.
+          3. بعد التثبيت أو فك الضغط، شغل fuel_station_app_pro.exe مباشرة.
           "@
           Set-Content -Path "build/windows/x64/runner/Release/README_HOW_TO_RUN.txt" -Value $readme -Encoding UTF8
+
+      - name: Install Inno Setup
+        run: |
+          Write-Host "=== Installing Inno Setup via Chocolatey ==="
+          choco install innosetup -y --no-progress
+          $innoPath = "C:\Program Files (x86)\Inno Setup 6"
+          if (Test-Path $innoPath) {
+            Write-Host "Found Inno Setup at: $innoPath"
+            echo "$innoPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          } else {
+            Write-Warning "Inno Setup default directory not found, checking PATH..."
+          }
+
+      - name: Build Inno Setup Installer
+        run: |
+          $buildNum = "${{ github.run_number }}"
+          Write-Host "=== Compiling Inno Setup Single-File Installer for Build #$buildNum ==="
+          
+          $isccExe = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $isccExe)) {
+            $cmd = Get-Command iscc.exe -ErrorAction SilentlyContinue
+            if ($cmd) {
+              $isccExe = $cmd.Source
+            } else {
+              Write-Error "ISCC.exe compiler not found!"
+              exit 1
+            }
+          }
+          Write-Host "Using Inno Setup Compiler at: $isccExe"
+
+          # Verify Arabic language file
+          if (Test-Path "windows\installer\Arabic.isl") {
+            Write-Host "Arabic translation file found at: windows\installer\Arabic.isl"
+          } else {
+            Write-Warning "Arabic translation file not found in windows\installer"
+          }
+
+          # Compile installer with dynamic build version
+          & $isccExe "/DMyAppVersion=$buildNum" installer_script.iss
+
+          # Verify installer output
+          $installerFiles = Get-ChildItem -Path "installer_output\FuelStationAppPro-Setup-v*.exe"
+          if ($installerFiles.Count -gt 0) {
+            $inst = $installerFiles[0]
+            Write-Host "`n========================================================"
+            Write-Host "SUCCESS: Single-file Windows Installer compiled successfully!"
+            Write-Host "Installer Name: $($inst.Name)"
+            Write-Host "Installer Size: $([math]::Round($inst.Length / 1MB, 2)) MB ($($inst.Length) bytes)"
+            Write-Host "========================================================`n"
+            Copy-Item -Path $inst.FullName -Destination "FuelStationAppPro-Setup-v$buildNum.exe" -Force
+          } else {
+            Write-Error "CRITICAL: No installer executable found in installer_output directory!"
+            exit 1
+          }
 
       - name: Package build as zip
         run: |
@@ -85,7 +139,14 @@ jobs:
           $zip.Entries | Select-Object FullName, Length | Format-Table -AutoSize
           $zip.Dispose()
 
-      - name: Upload build artifact
+      - name: Upload Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FuelStationAppPro-Setup-v${{ github.run_number }}
+          path: FuelStationAppPro-Setup-v${{ github.run_number }}.exe
+          retention-days: 30
+
+      - name: Upload ZIP Artifact
         uses: actions/upload-artifact@v4
         with:
           name: fuel_station_app_pro-windows
@@ -98,6 +159,8 @@ jobs:
         with:
           tag_name: build-${{ github.run_number }}
           name: "Windows Pro Build #${{ github.run_number }}"
-          files: fuel_station_app_pro-windows.zip
+          files: |
+            FuelStationAppPro-Setup-v${{ github.run_number }}.exe
+            fuel_station_app_pro-windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

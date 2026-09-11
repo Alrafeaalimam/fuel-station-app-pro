@@ -128,6 +128,18 @@ class _LicenseScreenState extends State<LicenseScreen> {
     );
   }
 
+  Future<void> _copyPhoneNumber() async {
+    const phoneNumber = '0115715672';
+    await Clipboard.setData(const ClipboardData(text: phoneNumber));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم نسخ رقم التواصل (0115715672) إلى الحافظة بنجاح'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> _openWhatsApp() async {
     final text = 'مرحباً، أريد الحصول على ترخيص لتطبيق محطة الوقود. معرف الجهاز: $_deviceCode';
     final url = 'https://wa.me/249115715672?text=${Uri.encodeComponent(text)}';
@@ -210,7 +222,7 @@ class _LicenseScreenState extends State<LicenseScreen> {
                             width: 76,
                             height: 76,
                             decoration: BoxDecoration(
-                              color: headerColor.withOpacity(0.12),
+                              color: headerColor.withValues(alpha: 0.12),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(headerIcon, size: 40, color: headerColor),
@@ -320,7 +332,60 @@ class _LicenseScreenState extends State<LicenseScreen> {
                             elevation: 1,
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 12),
+
+                        // خيار التواصل في حال عدم توفر إنترنت أو واتساب على جهاز الكمبيوتر
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Wrap(
+                            alignment: WrapAlignment.center,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              const Icon(Icons.phone_android_rounded, size: 18, color: AppTheme.primaryBlue),
+                              const Text(
+                                'أو تواصل عبر الرقم:',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textDark,
+                                ),
+                              ),
+                              const Directionality(
+                                textDirection: TextDirection.ltr,
+                                child: Text(
+                                  '0115715672',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppTheme.primaryBlue,
+                                    fontFamily: 'monospace',
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: _copyPhoneNumber,
+                                icon: const Icon(Icons.copy_rounded, size: 14),
+                                label: const Text('نسخ الرقم', style: TextStyle(fontSize: 11)),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
 
                         const Divider(),
                         const SizedBox(height: 16),
@@ -385,9 +450,9 @@ class _LicenseScreenState extends State<LicenseScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppTheme.dangerRed.withOpacity(0.1),
+                              color: AppTheme.dangerRed.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppTheme.dangerRed.withOpacity(0.3)),
+                              border: Border.all(color: AppTheme.dangerRed.withValues(alpha: 0.3)),
                             ),
                             child: Row(
                               children: [

@@ -1,0 +1,103 @@
+name: Build Windows Pro App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: 'stable'
+
+      - name: Enable Windows Desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Windows Release
+        run: flutter build windows --release
+
+      - name: Copy VC++ Runtime DLLs and Verify Release Files
+        run: |
+          Write-Host "=== Bundling Visual C++ Runtime DLLs ==="
+          $vcrDlls = @("msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+          foreach ($dll in $vcrDlls) {
+            $sysPath = "C:\Windows\System32\$dll"
+            if (Test-Path $sysPath) {
+              Copy-Item -Path $sysPath -Destination "build/windows/x64/runner/Release/" -Force
+              Write-Host "Bundled: $dll"
+            } else {
+              Write-Host "Not in System32: $dll"
+            }
+          }
+
+          Write-Host "`n=== All DLLs in Release Directory ==="
+          Get-ChildItem -Path "build/windows/x64/runner/Release/*.dll" | Select-Object Name, Length | Format-Table -AutoSize
+
+          Write-Host "`n=== Checking Critical Dependencies ==="
+          $criticalFiles = @(
+            "fuel_station_app_pro.exe",
+            "flutter_windows.dll",
+            "printing_plugin.dll",
+            "pdfium.dll",
+            "sqlite3.dll",
+            "msvcp140.dll",
+            "vcruntime140.dll"
+          )
+          foreach ($f in $criticalFiles) {
+            $target = "build/windows/x64/runner/Release/$f"
+            if (Test-Path $target) {
+              Write-Host "OK: $f exists ($((Get-Item $target).Length) bytes)"
+            } else {
+              Write-Error "CRITICAL FILE MISSING: $f"
+              exit 1
+            }
+          }
+
+          $readme = @"
+          ملاحظة هامة لتشغيل تطبيق محطة الوقود (النسخة الاحترافية Pro):
+          1. يجب فك ضغط هذا الملف كاملاً (Extract All) إلى مجلد عادي على جهازك.
+          2. لا تقم بتشغيل التطبيق من داخل ملف الـ zip مباشرة دون فك الضغط.
+          3. بعد فك الضغط، افتح المجلد وشغل fuel_station_app_pro.exe مباشرة.
+          "@
+          Set-Content -Path "build/windows/x64/runner/Release/README_HOW_TO_RUN.txt" -Value $readme -Encoding UTF8
+
+      - name: Package build as zip
+        run: |
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath fuel_station_app_pro-windows.zip -Force
+          Write-Host "=== Verifying ZIP contents ==="
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path "fuel_station_app_pro-windows.zip"))
+          $zip.Entries | Select-Object FullName, Length | Format-Table -AutoSize
+          $zip.Dispose()
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuel_station_app_pro-windows
+          path: fuel_station_app_pro-windows.zip
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "Windows Pro Build #${{ github.run_number }}"
+          files: fuel_station_app_pro-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,46 @@
+name: fuel_station_app_pro
+description: "Fuel Station Management System Pro"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  sqflite: ^2.4.3
+  sqflite_common_ffi: ^2.4.2+1
+  sqflite_common_ffi_web: ^1.1.2
+  path: ^1.9.1
+  path_provider: ^2.1.6
+  flutter_bloc: ^9.1.1
+  equatable: ^2.1.0
+  intl: ^0.20.3
+  crypto: ^3.0.7
+  pdf: ^3.13.0
+  printing: ^5.15.0
+  file_picker: ^12.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/NotoNaskhArabic-Regular.ttf
+    - assets/fonts/NotoNaskhArabic-Bold.ttf
+
+  fonts:
+    - family: NotoNaskhArabic
+      fonts:
+        - asset: assets/fonts/NotoNaskhArabic-Regular.ttf
+        - asset: assets/fonts/NotoNaskhArabic-Bold.ttf
+          weight: 700

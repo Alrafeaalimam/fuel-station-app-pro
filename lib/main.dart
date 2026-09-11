@@ -25,11 +25,16 @@ import 'bloc/reports/reports_bloc.dart';
 import 'config/station_config.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/main_navigation_shell.dart';
+import 'screens/license/license_screen.dart';
+import 'services/license_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StationConfig.loadStationName();
+  try {
+    await LicenseService.checkLicenseStatus();
+  } catch (_) {}
   runApp(const FuelStationApp());
 }
 
@@ -115,12 +120,22 @@ class FuelStationApp extends StatelessWidget {
                   child: child ?? const SizedBox.shrink(),
                 );
               },
-              home: BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) {
-                  if (state is AuthAuthenticated) {
-                    return const MainNavigationShell();
+              home: ValueListenableBuilder<LicenseInfo>(
+                valueListenable: LicenseService.licenseNotifier,
+                builder: (context, licenseInfo, _) {
+                  // قفل التطبيق بالكامل وعرض شاشة التفعيل فقط في حال انتهاء الفترة التجريبية أو التلاعب
+                  if (!licenseInfo.isOperational) {
+                    return const LicenseScreen(isDismissible: false);
                   }
-                  return const LoginScreen();
+
+                  return BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      if (state is AuthAuthenticated) {
+                        return const MainNavigationShell();
+                      }
+                      return const LoginScreen();
+                    },
+                  );
                 },
               ),
             );

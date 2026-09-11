@@ -28,6 +28,8 @@ import 'tanks/tank_settings_screen.dart';
 import '../widgets/change_password_dialog.dart';
 import '../config/station_config.dart';
 import '../utils/permission_guard.dart';
+import '../services/license_service.dart';
+import 'license/license_screen.dart';
 
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({super.key});
@@ -227,6 +229,8 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
               children: [
                 // Top App Header
                 _buildTopHeader(context, currentUser),
+                // Trial Warning Banner
+                _buildTrialBanner(context),
                 // Screen Content
                 Expanded(
                   child: IndexedStack(
@@ -377,6 +381,77 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTrialBanner(BuildContext context) {
+    return ValueListenableBuilder<LicenseInfo>(
+      valueListenable: LicenseService.licenseNotifier,
+      builder: (context, info, _) {
+        if (!info.isTrial) return const SizedBox.shrink();
+
+        final days = info.daysRemaining;
+        final isUrgent = days <= 2;
+
+        final bgColor = isUrgent ? const Color(0xFFFEF3C7) : const Color(0xFFE0F2FE);
+        final borderColor = isUrgent ? const Color(0xFFF59E0B) : const Color(0xFF38BDF8);
+        final textColor = isUrgent ? const Color(0xFF92400E) : const Color(0xFF0369A1);
+        final icon = isUrgent ? Icons.warning_amber_rounded : Icons.hourglass_top_rounded;
+
+        String dayText;
+        if (days == 1) {
+          dayText = 'متبقي يوم واحد فقط!';
+        } else if (days == 2) {
+          dayText = 'متبقي يومان فقط!';
+        } else {
+          dayText = 'متبقي $days أيام';
+        }
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          decoration: BoxDecoration(
+            color: bgColor,
+            border: Border(
+              bottom: BorderSide(color: borderColor, width: 1.5),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: textColor),
+              const SizedBox(width: 8),
+              Text(
+                'الفترة التجريبية: $dayText',
+                style: TextStyle(
+                  color: textColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: () => _openActivationScreen(context),
+                icon: const Icon(Icons.key_rounded, size: 14),
+                label: const Text('تفعيل الترخيص الآن', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: textColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _openActivationScreen(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const LicenseScreen(isDismissible: true),
       ),
     );
   }
